@@ -1,0 +1,13 @@
+# Go vendor (use deps to populate vendor folder with dependencies)
+vendor/
+
+# local builds
+/torc.exe
+/torc
+/debug
+
+# local test data
+ignore/
+
+# visual studio vode project files
+.vscode/
