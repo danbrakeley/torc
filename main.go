@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/danbrakeley/torc/eff"
 	"github.com/urfave/cli"
@@ -118,11 +119,61 @@ func DoCompareAction(torrentFile, rootPath string, opts *CompareOpts, shouldDele
 		fmt.Println("No differences found")
 	}
 
-	if shouldDelete {
-		fmt.Println("--delete not yet implemented, no files were deleted")
+	if shouldDelete && len(r.OnlyOnDisk) > 0 {
+		yesToAll := false
+		numSkipped := 0
+		numDeleted := 0
+		for i, entry := range r.OnlyOnDisk {
+			deletePath := filepath.Join(rootPath, entry)
+			yes := yesToAll
+
+		tryagain:
+			if !yes {
+				fmt.Printf("[%d/%d] Delete \"%s\" (y/n/a)? ", i+1, len(r.OnlyOnDisk), deletePath)
+
+				var rawReply string
+				_, err := fmt.Scanf("%s\n", &rawReply)
+				if err != nil {
+					fmt.Println("")
+					return eff.NewErr(err).WithMessage("problem reading response, aborting")
+				}
+
+				switch strings.ToLower(strings.TrimSpace(rawReply)) {
+				case "y", "yes":
+					yes = true
+				case "a", "all":
+					yes = true
+					yesToAll = true
+				case "n", "no":
+				default:
+					fmt.Println("Valid responses: [y]es, [n]o, yes to [a]ll")
+					goto tryagain
+				}
+			}
+
+			if yes {
+				if err := os.Remove(deletePath); err != nil {
+					return eff.NewErr(err).WithMessage("error deleting file, aborting").WithField("path", deletePath)
+				}
+				numDeleted++
+			} else {
+				numSkipped++
+			}
+		}
+
+		if numDeleted > 0 || numSkipped > 0 {
+			fmt.Printf("Deleted %d file%s, skipped %d file%s\n", numDeleted, pluralS(numDeleted), numSkipped, pluralS(numSkipped))
+		}
 	}
 
 	return nil
+}
+
+func pluralS(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func DoListAction(torrentFile string) error {
