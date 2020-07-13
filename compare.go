@@ -1,11 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
-
-	"github.com/danbrakeley/torc/eff"
 )
 
 // CompareOpts are optional flags that can be passed to CompareTorrentPathsToDisk
@@ -37,7 +36,7 @@ func CompareTorrentPathsToDisk(torrentFile, path string, opts *CompareOpts) (*Re
 		if _, err := os.Stat(nativePath); os.IsNotExist(err) {
 			r.OnlyInTorrent = append(r.OnlyInTorrent, nativePath)
 		} else if err != nil {
-			return nil, eff.NewErr(err).WithMessage("error with os.Stat(native_path)").WithField("native_path", nativePath)
+			return nil, fmt.Errorf(`error in os.Stat("%s"): %v`, nativePath, err)
 		}
 		return &r, nil
 	}
@@ -52,10 +51,13 @@ func CompareTorrentPathsToDisk(torrentFile, path string, opts *CompareOpts) (*Re
 	rootPath := filepath.Join(path, torrentRootPath)
 	info, err := os.Stat(rootPath)
 	if os.IsNotExist(err) {
-		return nil, eff.NewErr(err).WithMessage("could not find root path").WithField("root_path", rootPath)
+		return nil, fmt.Errorf(`"%s" does not exist`, rootPath)
+	}
+	if err != nil {
+		return nil, fmt.Errorf(`error trying to stat "%s": %v`, rootPath, err)
 	}
 	if !info.IsDir() {
-		return nil, eff.New().WithMessage("root path exists, but is not a folder").WithField("root_path", rootPath)
+		return nil, fmt.Errorf(`"%s" is not a folder`, rootPath)
 	}
 
 	// build sorted list of files on disk

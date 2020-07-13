@@ -7,15 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/danbrakeley/torc/eff"
 	"github.com/urfave/cli"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "torc"
-	app.Version = "0.0.1"
-	app.Copyright = "(c) 2017 Dan Brakeley"
+	app.Version = "0.1.0"
+	app.Copyright = "(c) 2020 Dan Brakeley"
 	app.Usage = "compare local files to a torrent file"
 
 	app.Commands = []cli.Command{
@@ -39,8 +38,8 @@ the files on disk that are not present in the torrent.`,
 			},
 			Action: func(c *cli.Context) error {
 				args := c.Args()
-				if err := CheckNumArgs(len(args), 2); err != nil {
-					return err
+				if len(args) != 2 {
+					return fmt.Errorf("expected 2 arguments")
 				}
 				shouldDelete := c.Bool("delete")
 				opts := CompareOpts{
@@ -56,8 +55,8 @@ the files on disk that are not present in the torrent.`,
 			ArgsUsage: "<file.torrent>",
 			Action: func(c *cli.Context) error {
 				args := c.Args()
-				if err := CheckNumArgs(len(args), 1); err != nil {
-					return err
+				if len(args) != 1 {
+					return fmt.Errorf("expected 1 argument")
 				}
 				return WrapInUsageError(DoListAction(args[0]))
 			},
@@ -84,16 +83,6 @@ func WrapInUsageError(err error) error {
 		return nil
 	}
 	return UsageError{err}
-}
-
-func CheckNumArgs(numArgs, expected int) error {
-	if numArgs < expected {
-		return eff.NewMsg("not enough arguments")
-	}
-	if numArgs > expected {
-		return eff.NewMsg("too many arguments")
-	}
-	return nil
 }
 
 func DoCompareAction(torrentFile, rootPath string, opts *CompareOpts, shouldDelete bool) error {
@@ -135,7 +124,7 @@ func DoCompareAction(torrentFile, rootPath string, opts *CompareOpts, shouldDele
 				_, err := fmt.Scanf("%s\n", &rawReply)
 				if err != nil {
 					fmt.Println("")
-					return eff.NewErr(err).WithMessage("problem reading response, aborting")
+					return fmt.Errorf("error reading response: %v", err)
 				}
 
 				switch strings.ToLower(strings.TrimSpace(rawReply)) {
@@ -153,7 +142,7 @@ func DoCompareAction(torrentFile, rootPath string, opts *CompareOpts, shouldDele
 
 			if yes {
 				if err := os.Remove(deletePath); err != nil {
-					return eff.NewErr(err).WithMessage("error deleting file, aborting").WithField("path", deletePath)
+					return fmt.Errorf(`error deleting "%s": %v`, deletePath, err)
 				}
 				numDeleted++
 			} else {
